@@ -1,0 +1,243 @@
+---
+title: "Synechocystis_Data_Analysis"
+author: "T.A.J. Uijen, "
+date: "01/04/2025-29/05/2026"
+output:
+  pdf_document:
+    number_sections: no
+    toc: yes
+    toc_depth: 3
+  html_document:
+    toc: yes
+    toc_depth: '3'
+    df_print: paged
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+# Importing data and loading packages
+
+```{r}
+library(readr)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(flextable)
+library(GGally)
+library(broom)
+Design<-read_csv("Data/Design.csv")
+SpecPhot<-read_csv("Data/Spectrophotometer.csv")
+Turbidostat<-read_csv("Data/Turbidostat.csv")
+```
+
+# Analysis of turbidostat and OD data
+
+## Spectrophotometer data
+
+### A bit of data wrangling
+
+```{r}
+Design<-Design|>
+  mutate(phosphate_mM=factor(phosphate_mM))
+SpecPhot_total<-SpecPhot|>
+  arrange(channel)|>
+  mutate(phosphate_mM=Design$phosphate_mM,
+         chlor_a=10.186*(od_value_685-od_value_730)-0.08,
+         PBS=(od_value_634-od_value_730)/od_value_730)
+  
+# Compute the mean for each treatment group
+SpecPhot_treatment<-SpecPhot_total|>
+  group_by(phosphate_mM)|>
+  summarise(od_value_730=mean(od_value_730),
+            od_value_685=mean(od_value_685),
+            od_value_634=mean(od_value_634),
+            od_value_720=mean(od_value_720),
+            chlor_a=mean(chlor_a),
+            PBS=mean(PBS))
+
+
+```
+
+### Visualising the data
+
+```{r}
+od_730_plot<-ggplot(SpecPhot_treatment, aes(phosphate_mM,od_value_730,fill = phosphate_mM))+
+  geom_col(show.legend = F)+
+  labs(x="[Phosphate] (mM)", y=expression(OD[730]))+
+  scale_fill_brewer(type="seq",palette = "Dark2")+
+  theme_bw()
+
+
+chlor_a_plot<-ggplot(SpecPhot_treatment, aes(phosphate_mM,chlor_a,fill = phosphate_mM))+geom_col(show.legend = F)+labs(x="[Phosphate] (mM)", y=expression("Chlorophyl A (mg/L)"))+
+  scale_fill_brewer(type="seq",palette = "Dark2")+
+  theme_bw()
+
+pbs_plot<-ggplot(SpecPhot_treatment, aes(phosphate_mM,PBS,fill = phosphate_mM))+
+  geom_col(show.legend = F)+
+  labs(x="[Phosphate] (mM)", y=expression("Phycobilisomes (mg/L)"))+
+  scale_fill_brewer(type="seq",palette = "Dark2")+
+  theme_bw()
+
+od_730_plot
+chlor_a_plot
+pbs_plot
+```
+
+Observations:
+
+-   The OD is higher in the group with more phosphate
+
+-   The Chlorophil A content is higher in the group with more phosphate.
+    This is noteworthy since there is less light provided to the
+    cyanobacteria here. One might propose that the bacteria attempt to
+    get more out of the limited light?
+
+-   Phycobilisome content does not change significantly, this is also
+    shown with a t-test below
+
+### Hypothesis tests
+
+```{r}
+test_OD<-t.test(od_value_730~phosphate_mM,SpecPhot_total)
+test_chlorA<-t.test(chlor_a~phosphate_mM,SpecPhot_total)
+test_PBS<-t.test(PBS~phosphate_mM,SpecPhot_total)
+
+spec_phot_test_results<-data.frame(Variable=c('OD_730',"Chlorophil A", "Phycobilisomes"), P_value=c(round(test_OD$p.value,3),  round(test_chlorA$p.value,3), round(test_PBS$p.value,3)))
+
+spec_phot_test_results|>flextable()
+```
+
+## Turbidostat data
+
+### Initial visualisation of time series
+
+```{r}
+Turbidostat<-Turbidostat|>
+  left_join(Design|>select(channel,phosphate_mM))
+
+ggplot(Turbidostat,aes(time_h,OD,colour=phosphate_mM))+
+  geom_point()+
+  facet_wrap(~channel,scales="free_x")+
+  labs(title="Time series",subtitle=expression(OD[720] ~" over time in hours, coloured by treatment group"), x="Time (h)",y=expression(OD[720]), colour="[phosphate] (mM)")+
+  scale_colour_brewer(type="seq",palette = "Dark2")+
+  theme_bw()
+  
+```
+
+Observations:\
+
+-   Channel 5 starts low, behaves normally after
+
+-   Channel 3 seems translated downwards, as the pump is supposed to
+    turn on at OD=0.35, here this seems to happen at OD=0.32. In
+    principle this does not change the analysis, as we are concerned
+    with the rate of change, not the absolute values.
+
+### Some data wrangling again
+
+```{r}
+Growth_rates<-Turbidostat|>
+  mutate(log_OD=log(OD))|> # compute log OD
+  group_by(channel,decision)|>
+  #Compute growth rates and R^2
+  summarise(mu=coef(lm(log_OD~time_h))[2],
+            r_sq=summary(lm(log_OD~time_h))$r.squared,.groups = "drop_last")|>  
+  filter(r_sq>.9) |># Remove cycles with less than 0.9 R^2|. This causes ch. 1 to only have 1 point
+  left_join(Design |> select(channel, phosphate_mM))
+
+
+test<-shapiro.test(Growth_rates|>filter(phosphate_mM=="0.0115")|>pull(mu))
+Mean_growth<-Growth_rates|>
+  group_by(channel)|>
+  summarise(mean_mu=mean(mu),
+            sd_mu=sd(mu))|>
+  left_join(Design |> select(channel, phosphate_mM), by = "channel")
+  
+
+Growth_rates<-Growth_rates|>
+  mutate(channel=factor(channel))
+
+Mean_growth_per_group<-Growth_rates|>
+  group_by(phosphate_mM)|>
+  summarise(mean_mu_grp=mean(mu),sd_mu_grp=sd(mu),
+            CI1=t.test(mu)$conf.int[1],
+            CI2=t.test(mu)$conf.int[2]) # Confidence interval is assuming normal distribution of the mean
+
+
+
+
+```
+
+### Visualisation
+
+```{r}
+violin_plot<-ggplot(Growth_rates,aes(channel,mu,fill=phosphate_mM))+
+  geom_violin()+
+  geom_point()+
+  labs(title="Violin plot",
+       subtitle = "Growth rates per channel, coloured by treatment group",
+       x="Channel",
+       y=expression(mu),
+       fill="[phosphate] (mM)")+
+  scale_fill_brewer(type="seq",palette = "Dark2")+
+  theme_bw()
+
+technical_var<-ggplot(Mean_growth,aes(channel,mean_mu,fill=phosphate_mM))+
+  geom_col()+
+  geom_errorbar(aes(ymin=mean_mu-2*sd_mu,ymax=mean_mu+2*sd_mu),width=0.2)+
+  scale_fill_brewer(type="seq",palette = "Dark2")+
+  labs(title="Bar plot",
+       subtitle = "Mean growth rates per channel, error bars represent 2 standard deviations",
+       x="Channel",
+       y=expression("mean" ~ mu),
+       fill="[phosphate] (mM)")+
+  theme_bw()
+
+biological_var<-ggplot(Mean_growth_per_group,aes(phosphate_mM,mean_mu_grp,fill=phosphate_mM))+geom_col(show.legend = F)+geom_errorbar(aes(ymin=CI1,ymax=CI2),width=0.2)+
+  scale_fill_brewer(type="seq",palette = "Dark2")+
+  labs(title="Bar plot",
+       subtitle = "Growth rates per treatment group, error bars represent 95% confidence interval",
+       x="[phosphate] (mM)",
+       y=expression("mean"~ mu))+
+  theme_bw()
+violin_plot
+
+technical_var
+
+biological_var
+
+t.test(mu~phosphate_mM,Growth_rates) #the null hypothesis that the mean growthrate between groups is the same is not rejected 
+```
+
+Observations:
+
+-   No measurement of SD of channel 1
+
+-   The other channels seem to not differ significantly (assuming normal
+    distributions)
+
+-   There seems to be no group difference between phosphate
+    concentration (this is as desired) This is corroborated by a t-test
+    (under the assumption of normality.
+
+We test the normality assumption using a Shapiro-Wilk normality test,
+given the small sample size of 20 growth rates that have an $R^2>0.90$
+
+```{r}
+normality_test<-Growth_rates|>
+  group_by(phosphate_mM)|>
+  summarise(p.value=shapiro.test(mu)$p.value)
+```
+
+The test does not suggest non-normality of the data, which speaks in
+favour of the reliability of the analysis above.
+
+Since the tests do not suggest non-normality, nor a difference in mean
+OD$_{720}$, we can test normality further by not grouping by treatment:
+
+```{r}
+shapiro.test(Growth_rates$mu)
+```
+
+In this case we also do not reject the null hypothesis of normality.
