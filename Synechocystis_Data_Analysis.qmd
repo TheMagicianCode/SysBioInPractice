@@ -14,11 +14,15 @@ output:
 editor_options:
   markdown:
     wrap: 72
+execute: 
+  echo: true
+  message: false
+  warning: false
 ---
 
 # Importing data and loading packages
 
-```{r}
+```{r, echo=TRUE, message=FALSE}
 library(readr)
 library(tidyr)
 library(dplyr)
@@ -64,18 +68,28 @@ SpecPhot_treatment<-SpecPhot_total|>
 ```{r}
 od_730_plot<-ggplot(SpecPhot_treatment, aes(phosphate_mM,od_value_730,fill = phosphate_mM))+
   geom_col(show.legend = F)+
-  labs(x="[Phosphate] (mM)", y=expression(OD[730]))+
-  scale_fill_brewer(type="seq",palette = "Dark2")+
+  labs(title="Bar plot",
+       subtitle = expression(OD[730]~"per treatment group"),
+       x="[Phosphate] (mM)", 
+       y=expression(OD[730]))+
+  scale_fill_brewer(type="seq",palette = "Dark2") +
   theme_bw()
 
 
-chlor_a_plot<-ggplot(SpecPhot_treatment, aes(phosphate_mM,chlor_a,fill = phosphate_mM))+geom_col(show.legend = F)+labs(x="[Phosphate] (mM)", y=expression("Chlorophyl A (mg/L)"))+
+chlor_a_plot<-ggplot(SpecPhot_treatment, aes(phosphate_mM,chlor_a,fill = phosphate_mM))+geom_col(show.legend = F)+
+  labs(x="[Phosphate] (mM)", 
+       y=expression("Chlorophyl A (mg/L)"),
+       title="Bar plot",
+       subtitle = "Chorophyl A per treatment group")+
   scale_fill_brewer(type="seq",palette = "Dark2")+
   theme_bw()
 
 pbs_plot<-ggplot(SpecPhot_treatment, aes(phosphate_mM,PBS,fill = phosphate_mM))+
   geom_col(show.legend = F)+
-  labs(x="[Phosphate] (mM)", y=expression("Phycobilisomes (mg/L)"))+
+  labs(x="[Phosphate] (mM)", 
+       y=expression("Phycobilisomes (mg/L)"),
+       title="Bar plot",
+       subtitle = "Phycobilisomes per treatment group")+
   scale_fill_brewer(type="seq",palette = "Dark2")+
   theme_bw()
 
@@ -127,7 +141,8 @@ ggplot(Turbidostat,aes(time_h,OD,colour=phosphate_mM))+
 
 Observations:\
 
--   Channel 5 starts low, behaves normally after
+-   Channel 5 starts low, behaves normally after the first activation of
+    the pump
 
 -   Channel 3 seems translated downwards, as the pump is supposed to
     turn on at OD=0.35, here this seems to happen at OD=0.32. In
@@ -142,7 +157,8 @@ Growth_rates<-Turbidostat|>
   group_by(channel,decision)|>
   #Compute growth rates and R^2
   summarise(mu=coef(lm(log_OD~time_h))[2],
-            r_sq=summary(lm(log_OD~time_h))$r.squared,.groups = "drop_last")|>  
+            r_sq=summary(lm(log_OD~time_h))$r.squared, 
+            .groups = "drop_last")|>  
   filter(r_sq>.9) |># Remove cycles with less than 0.9 R^2|. This causes ch. 1 to only have 1 point
   left_join(Design |> select(channel, phosphate_mM))
 
