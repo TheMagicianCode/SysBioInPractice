@@ -153,9 +153,12 @@ window.Quarto = {
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(flextable)</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(GGally)</span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(broom)</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>Design<span class="ot">&lt;-</span><span class="fu">read_csv</span>(<span class="st">"Data/Design.csv"</span>)</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>SpecPhot<span class="ot">&lt;-</span><span class="fu">read_csv</span>(<span class="st">"Data/Spectrophotometer.csv"</span>)</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>Turbidostat<span class="ot">&lt;-</span><span class="fu">read_csv</span>(<span class="st">"Data/Turbidostat.csv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>Design<span class="ot">&lt;-</span><span class="fu">read_csv</span>(<span class="st">"Data/Design.csv"</span>)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>SpecPhot<span class="ot">&lt;-</span><span class="fu">read_csv</span>(<span class="st">"Data/Spectrophotometer.csv"</span>)</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>Turbidostat<span class="ot">&lt;-</span><span class="fu">read_csv</span>(<span class="st">"Data/Turbidostat.csv"</span>)</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>CASY<span class="ot">&lt;-</span><span class="fu">read_csv</span>(<span class="st">"Data/Casy.csv"</span>)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>qPCR<span class="ot">&lt;-</span><span class="fu">read_csv</span>(<span class="st">"Data/Qpcr.csv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="analysis-of-turbidostat-and-od-data" class="level1">
@@ -167,21 +170,22 @@ window.Quarto = {
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>Design<span class="ot">&lt;-</span>Design<span class="sc">|&gt;</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">phosphate_mM=</span><span class="fu">factor</span>(phosphate_mM))</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>SpecPhot_total<span class="ot">&lt;-</span>SpecPhot<span class="sc">|&gt;</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(channel)<span class="sc">|&gt;</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">phosphate_mM=</span>Design<span class="sc">$</span>phosphate_mM,</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>         <span class="at">chlor_a=</span><span class="fl">10.186</span><span class="sc">*</span>(od_value_685<span class="sc">-</span>od_value_730)<span class="sc">-</span><span class="fl">0.08</span>,</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>         <span class="at">PBS=</span>(od_value_634<span class="sc">-</span>od_value_730)<span class="sc">/</span>od_value_730)</span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute the mean for each treatment group</span></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>SpecPhot_treatment<span class="ot">&lt;-</span>SpecPhot_total<span class="sc">|&gt;</span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(phosphate_mM)<span class="sc">|&gt;</span></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">od_value_730=</span><span class="fu">mean</span>(od_value_730),</span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>            <span class="at">od_value_685=</span><span class="fu">mean</span>(od_value_685),</span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>            <span class="at">od_value_634=</span><span class="fu">mean</span>(od_value_634),</span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>            <span class="at">od_value_720=</span><span class="fu">mean</span>(od_value_720),</span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>            <span class="at">chlor_a=</span><span class="fu">mean</span>(chlor_a),</span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>            <span class="at">PBS=</span><span class="fu">mean</span>(PBS))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>SpecPhot_total<span class="ot">&lt;-</span>SpecPhot<span class="sc">|&gt;</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(channel)<span class="sc">|&gt;</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">phosphate_mM=</span>Design<span class="sc">$</span>phosphate_mM,</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>         <span class="at">chlor_a=</span><span class="fl">10.186</span><span class="sc">*</span>(od_value_685<span class="sc">-</span>od_value_730)<span class="sc">-</span><span class="fl">0.08</span>,</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>         <span class="at">PBS=</span>(od_value_634<span class="sc">-</span>od_value_730)<span class="sc">/</span>od_value_730)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute the mean for each treatment group</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>SpecPhot_treatment<span class="ot">&lt;-</span>SpecPhot_total<span class="sc">|&gt;</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(phosphate_mM)<span class="sc">|&gt;</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">od_value_730=</span><span class="fu">mean</span>(od_value_730),</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>            <span class="at">od_value_685=</span><span class="fu">mean</span>(od_value_685),</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>            <span class="at">od_value_634=</span><span class="fu">mean</span>(od_value_634),</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>            <span class="at">od_value_720=</span><span class="fu">mean</span>(od_value_720),</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>            <span class="at">chlor_a=</span><span class="fu">mean</span>(chlor_a),</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>            <span class="at">PBS=</span><span class="fu">mean</span>(PBS))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="visualising-the-data" class="level3">
@@ -257,7 +261,7 @@ window.Quarto = {
 <span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>spec_phot_test_results<span class="sc">|&gt;</span><span class="fu">flextable</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
-<div class="tabwid"><style>.cl-1bddd000{}.cl-1bda5894{font-family:'Helvetica';font-size:11pt;font-weight:normal;font-style:normal;text-decoration:none;color:rgba(0, 0, 0, 1.00);background-color:transparent;}.cl-1bdbcc9c{margin:0;text-align:left;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);padding-bottom:5pt;padding-top:5pt;padding-left:5pt;padding-right:5pt;line-height: 1;background-color:transparent;}.cl-1bdbcc9d{margin:0;text-align:right;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);padding-bottom:5pt;padding-top:5pt;padding-left:5pt;padding-right:5pt;line-height: 1;background-color:transparent;}.cl-1bdbdf34{width:0.75in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 1.5pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-1bdbdf35{width:0.75in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 1.5pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-1bdbdf36{width:0.75in;background-color:transparent;vertical-align: middle;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-1bdbdf3e{width:0.75in;background-color:transparent;vertical-align: middle;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-1bdbdf3f{width:0.75in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-1bdbdf40{width:0.75in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}</style><table data-quarto-disable-processing="true" class="cl-1bddd000"><thead><tr style="overflow-wrap:break-word;"><th class="cl-1bdbdf34"><p class="cl-1bdbcc9c"><span class="cl-1bda5894">Variable</span></p></th><th class="cl-1bdbdf35"><p class="cl-1bdbcc9d"><span class="cl-1bda5894">P_value</span></p></th></tr></thead><tbody><tr style="overflow-wrap:break-word;"><td class="cl-1bdbdf36"><p class="cl-1bdbcc9c"><span class="cl-1bda5894">OD_730</span></p></td><td class="cl-1bdbdf3e"><p class="cl-1bdbcc9d"><span class="cl-1bda5894">0.073</span></p></td></tr><tr style="overflow-wrap:break-word;"><td class="cl-1bdbdf36"><p class="cl-1bdbcc9c"><span class="cl-1bda5894">Chlorophil A</span></p></td><td class="cl-1bdbdf3e"><p class="cl-1bdbcc9d"><span class="cl-1bda5894">0.001</span></p></td></tr><tr style="overflow-wrap:break-word;"><td class="cl-1bdbdf3f"><p class="cl-1bdbcc9c"><span class="cl-1bda5894">Phycobilisomes</span></p></td><td class="cl-1bdbdf40"><p class="cl-1bdbcc9d"><span class="cl-1bda5894">0.564</span></p></td></tr></tbody></table></div>
+<div class="tabwid"><style>.cl-7cc7e23c{}.cl-7cc44c80{font-family:'Helvetica';font-size:11pt;font-weight:normal;font-style:normal;text-decoration:none;color:rgba(0, 0, 0, 1.00);background-color:transparent;}.cl-7cc5cd58{margin:0;text-align:left;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);padding-bottom:5pt;padding-top:5pt;padding-left:5pt;padding-right:5pt;line-height: 1;background-color:transparent;}.cl-7cc5cd62{margin:0;text-align:right;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);padding-bottom:5pt;padding-top:5pt;padding-left:5pt;padding-right:5pt;line-height: 1;background-color:transparent;}.cl-7cc5ddac{width:0.75in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 1.5pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-7cc5ddad{width:0.75in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 1.5pt solid rgba(102, 102, 102, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-7cc5ddb6{width:0.75in;background-color:transparent;vertical-align: middle;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-7cc5ddb7{width:0.75in;background-color:transparent;vertical-align: middle;border-bottom: 0 solid rgba(0, 0, 0, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-7cc5ddb8{width:0.75in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}.cl-7cc5ddb9{width:0.75in;background-color:transparent;vertical-align: middle;border-bottom: 1.5pt solid rgba(102, 102, 102, 1.00);border-top: 0 solid rgba(0, 0, 0, 1.00);border-left: 0 solid rgba(0, 0, 0, 1.00);border-right: 0 solid rgba(0, 0, 0, 1.00);margin-bottom:0;margin-top:0;margin-left:0;margin-right:0;}</style><table data-quarto-disable-processing="true" class="cl-7cc7e23c"><thead><tr style="overflow-wrap:break-word;"><th class="cl-7cc5ddac"><p class="cl-7cc5cd58"><span class="cl-7cc44c80">Variable</span></p></th><th class="cl-7cc5ddad"><p class="cl-7cc5cd62"><span class="cl-7cc44c80">P_value</span></p></th></tr></thead><tbody><tr style="overflow-wrap:break-word;"><td class="cl-7cc5ddb6"><p class="cl-7cc5cd58"><span class="cl-7cc44c80">OD_730</span></p></td><td class="cl-7cc5ddb7"><p class="cl-7cc5cd62"><span class="cl-7cc44c80">0.073</span></p></td></tr><tr style="overflow-wrap:break-word;"><td class="cl-7cc5ddb6"><p class="cl-7cc5cd58"><span class="cl-7cc44c80">Chlorophil A</span></p></td><td class="cl-7cc5ddb7"><p class="cl-7cc5cd62"><span class="cl-7cc44c80">0.001</span></p></td></tr><tr style="overflow-wrap:break-word;"><td class="cl-7cc5ddb8"><p class="cl-7cc5cd58"><span class="cl-7cc44c80">Phycobilisomes</span></p></td><td class="cl-7cc5ddb9"><p class="cl-7cc5cd62"><span class="cl-7cc44c80">0.564</span></p></td></tr></tbody></table></div>
 </div>
 </div>
 </section>
@@ -420,6 +424,118 @@ W = 0.93554, p-value = 0.1972</code></pre>
 </div>
 <p>In this case we also do not reject the null hypothesis of normality.</p>
 </section>
+</section>
+</section>
+<section id="ploidy-determination" class="level1">
+<h1>Ploidy determination</h1>
+<section id="casy-counter-data" class="level2">
+<h2 class="anchored" data-anchor-id="casy-counter-data">CASY-counter data</h2>
+<p>Assumptions: Cells are spherical, no contaminants not captured in the blank.</p>
+<p>Counts measured by the CASY-counter are in a sample that is undiluted for the MC samples, 1:50 for the BBB samples and 1:2 for the ABB samples. 10 <span class="math inline">\(\mu\)</span>L of this dilution is then added to 10ml of CASY buffer. Of this mixture, 200 <span class="math inline">\(\mu\)</span>L is measured by the CASY-counter.</p>
+<p>First compute the mean cell counts for each channel over the 3 replicates</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>MC_CASY_cellcount<span class="ot">&lt;-</span>CASY<span class="sc">|&gt;</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(sample_type<span class="sc">==</span><span class="st">"MC"</span>)<span class="sc">|&gt;</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(channel)<span class="sc">|&gt;</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">mean_count_ml=</span><span class="fu">mean</span>(<span class="dv">1001</span><span class="sc">*</span><span class="dv">5</span><span class="sc">*</span>counts))<span class="sc">|&gt;</span> <span class="co"># Multiply by 5 for counts per ml</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(Design)<span class="sc">|&gt;</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">channel=</span><span class="fu">factor</span>(channel)) <span class="co"># makes the plots prettier</span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>BBB_cellcount<span class="ot">&lt;-</span>CASY<span class="sc">|&gt;</span></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(sample_type <span class="sc">==</span> <span class="st">"BBB"</span>)<span class="sc">|&gt;</span></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(channel)<span class="sc">|&gt;</span></span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">BBB_count_ml=</span><span class="fu">mean</span>(<span class="dv">1001</span><span class="sc">*</span><span class="dv">5</span><span class="sc">*</span><span class="dv">50</span><span class="sc">*</span>counts))<span class="sc">|&gt;</span></span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(Design) <span class="co"># Multiply by 50 to account for dilution</span></span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>ABB_BBB_cellcount<span class="ot">&lt;-</span>CASY<span class="sc">|&gt;</span></span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(sample_type<span class="sc">==</span><span class="st">"ABB"</span>)<span class="sc">|&gt;</span></span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(channel)<span class="sc">|&gt;</span></span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">ABB_count_ml=</span><span class="fu">mean</span>(<span class="dv">1001</span><span class="sc">*</span><span class="dv">5</span><span class="sc">*</span><span class="dv">2</span><span class="sc">*</span>counts))<span class="sc">|&gt;</span> <span class="co"># Multiply by 2 to account for dilution</span></span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(BBB_cellcount) </span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a>Broken_cell_count<span class="ot">=</span>ABB_BBB_cellcount<span class="sc">|&gt;</span></span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Broken_cell_count_ml=</span>BBB_count_ml<span class="sc">-</span>ABB_count_ml,</span>
+<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a>         <span class="at">channel=</span><span class="fu">factor</span>(channel),</span>
+<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a>         <span class="at">lysis_efficiency =</span> <span class="dv">100</span><span class="sc">*</span>Broken_cell_count_ml<span class="sc">/</span>BBB_count_ml)</span>
+<span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a>ABB_BBB_cellcount<span class="ot">&lt;-</span>ABB_BBB_cellcount<span class="sc">|&gt;</span></span>
+<span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="at">cols =</span> <span class="fu">c</span>(ABB_count_ml,BBB_count_ml),</span>
+<span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a>               <span class="at">names_to =</span> <span class="st">"Bead_status"</span>,</span>
+<span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a>               <span class="at">values_to =</span> <span class="st">"count_ml"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">channel=</span><span class="fu">factor</span>(channel),</span>
+<span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a>         <span class="at">Bead_status=</span><span class="fu">factor</span>(Bead_status))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>MC_cellcount_plot<span class="ot">&lt;-</span><span class="fu">ggplot</span>(MC_CASY_cellcount,<span class="fu">aes</span>(channel,mean_count_ml,<span class="at">fill=</span>phosphate_mM))<span class="sc">+</span><span class="fu">geom_col</span>()<span class="sc">+</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_brewer</span>(<span class="at">type=</span><span class="st">"seq"</span>,<span class="at">palette =</span> <span class="st">"Dark2"</span>,<span class="at">name =</span> <span class="st">"[Phosphate] (mM)"</span>) <span class="sc">+</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()<span class="sc">+</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title=</span><span class="st">"Cell counts in the MultiCultivator per channel"</span>,</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Computed from CASY-counts"</span>,</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>       <span class="at">x=</span><span class="st">"Channel"</span>,</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>       <span class="at">y=</span> <span class="st">"Cell concentration (cells/ml)"</span>)</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>comp_cellcount_plot<span class="ot">&lt;-</span><span class="fu">ggplot</span>(ABB_BBB_cellcount,<span class="fu">aes</span>(channel,count_ml,<span class="at">fill=</span>Bead_status))<span class="sc">+</span></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_col</span>(<span class="at">position =</span> <span class="st">"dodge"</span>) <span class="sc">+</span></span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_brewer</span>(<span class="at">type=</span><span class="st">"seq"</span>,<span class="at">palette =</span> <span class="st">"Set1"</span>,<span class="at">name=</span><span class="st">" Bead beating"</span>, <span class="at">labels=</span><span class="fu">c</span>(<span class="st">'ABB'</span>, <span class="st">"BBB"</span>)) <span class="sc">+</span></span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title=</span><span class="st">"Cell counts before and after bead beating per channel"</span>,</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Computed from CASY-counts"</span>,</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>       <span class="at">x=</span><span class="st">"Channel"</span>,</span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>       <span class="at">y=</span> <span class="st">"Cell concentration (cells/ml)"</span>) <span class="sc">+</span> </span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a>Broken_cell_count_plot<span class="ot">&lt;-</span><span class="fu">ggplot</span>(Broken_cell_count,<span class="fu">aes</span>(channel,Broken_cell_count_ml,<span class="at">fill=</span>phosphate_mM))<span class="sc">+</span><span class="fu">geom_col</span>()<span class="sc">+</span></span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_brewer</span>(<span class="at">type=</span><span class="st">"seq"</span>,<span class="at">palette =</span> <span class="st">"Dark2"</span>,<span class="at">name =</span> <span class="st">"[Phosphate] (mM)"</span>) <span class="sc">+</span></span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title=</span><span class="st">"Broken cell counts per channel"</span>,</span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Computed from CASY-counts"</span>,</span>
+<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a>       <span class="at">x=</span><span class="st">"Channel"</span>,</span>
+<span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a>       <span class="at">y=</span> <span class="st">"Cell concentration (cells/ml)"</span>) <span class="sc">+</span></span>
+<span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span>
+<span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a>lysis_efficiency_plot<span class="ot">&lt;-</span><span class="fu">ggplot</span>(Broken_cell_count,<span class="fu">aes</span>(channel,lysis_efficiency,<span class="at">fill=</span>phosphate_mM))<span class="sc">+</span><span class="fu">geom_col</span>()<span class="sc">+</span></span>
+<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_brewer</span>(<span class="at">type=</span><span class="st">"seq"</span>,<span class="at">palette =</span> <span class="st">"Dark2"</span>,<span class="at">name =</span> <span class="st">"[Phosphate] (mM)"</span>) <span class="sc">+</span></span>
+<span id="cb18-29"><a href="#cb18-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title=</span><span class="st">"Lysis efficiency per channel"</span>,</span>
+<span id="cb18-30"><a href="#cb18-30" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Computed from CASY-counts"</span>,</span>
+<span id="cb18-31"><a href="#cb18-31" aria-hidden="true" tabindex="-1"></a>       <span class="at">x=</span><span class="st">"Channel"</span>,</span>
+<span id="cb18-32"><a href="#cb18-32" aria-hidden="true" tabindex="-1"></a>       <span class="at">y=</span> <span class="st">"Lysis efficiency (%)"</span>) <span class="sc">+</span></span>
+<span id="cb18-33"><a href="#cb18-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span>
+<span id="cb18-34"><a href="#cb18-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-35"><a href="#cb18-35" aria-hidden="true" tabindex="-1"></a>MC_cellcount_plot</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Synechocystis_Data_Analysis_files/figure-html/unnamed-chunk-11-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>comp_cellcount_plot</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Synechocystis_Data_Analysis_files/figure-html/unnamed-chunk-11-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>Broken_cell_count_plot</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Synechocystis_Data_Analysis_files/figure-html/unnamed-chunk-11-3.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>lysis_efficiency_plot</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Synechocystis_Data_Analysis_files/figure-html/unnamed-chunk-11-4.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="qpcr-data" class="level2">
+<h2 class="anchored" data-anchor-id="qpcr-data">qPCR Data:</h2>
 </section>
 </section>
 

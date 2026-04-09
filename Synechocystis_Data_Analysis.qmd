@@ -30,9 +30,13 @@ library(ggplot2)
 library(flextable)
 library(GGally)
 library(broom)
+
 Design<-read_csv("Data/Design.csv")
 SpecPhot<-read_csv("Data/Spectrophotometer.csv")
 Turbidostat<-read_csv("Data/Turbidostat.csv")
+CASY<-read_csv("Data/Casy.csv")
+qPCR<-read_csv("Data/Qpcr.csv")
+
 ```
 
 # Analysis of turbidostat and OD data
@@ -44,6 +48,7 @@ Turbidostat<-read_csv("Data/Turbidostat.csv")
 ```{r}
 Design<-Design|>
   mutate(phosphate_mM=factor(phosphate_mM))
+
 SpecPhot_total<-SpecPhot|>
   arrange(channel)|>
   mutate(phosphate_mM=Design$phosphate_mM,
@@ -257,3 +262,101 @@ shapiro.test(Growth_rates$mu)
 ```
 
 In this case we also do not reject the null hypothesis of normality.
+
+# Ploidy determination
+
+## CASY-counter data
+
+Assumptions: Cells are spherical, no contaminants not captured in the
+blank.
+
+Counts measured by the CASY-counter are in a sample that is undiluted
+for the MC samples, 1:50 for the BBB samples and 1:2 for the ABB
+samples. 10 $\mu$L of this dilution is then added to 10ml of CASY
+buffer. Of this mixture, 200 $\mu$L is measured by the CASY-counter.
+
+First compute the mean cell counts for each channel over the 3
+replicates
+
+```{r}
+MC_CASY_cellcount<-CASY|>
+  filter(sample_type=="MC")|>
+  group_by(channel)|>
+  summarise(mean_count_ml=mean(1001*5*counts))|> # Multiply by 5 for counts per ml
+  left_join(Design)|>
+  mutate(channel=factor(channel)) # makes the plots prettier
+
+BBB_cellcount<-CASY|>
+  filter(sample_type == "BBB")|>
+  group_by(channel)|>
+  summarise(BBB_count_ml=mean(1001*5*50*counts))|>
+  left_join(Design) # Multiply by 50 to account for dilution
+
+ABB_BBB_cellcount<-CASY|>
+  filter(sample_type=="ABB")|>
+  group_by(channel)|>
+  summarise(ABB_count_ml=mean(1001*5*2*counts))|> # Multiply by 2 to account for dilution
+  left_join(BBB_cellcount) 
+
+Broken_cell_count=ABB_BBB_cellcount|>
+  mutate(Broken_cell_count_ml=BBB_count_ml-ABB_count_ml,
+         channel=factor(channel),
+         lysis_efficiency = 100*Broken_cell_count_ml/BBB_count_ml)
+  
+ABB_BBB_cellcount<-ABB_BBB_cellcount|>
+  pivot_longer(cols = c(ABB_count_ml,BBB_count_ml),
+               names_to = "Bead_status",
+               values_to = "count_ml") |>
+  mutate(channel=factor(channel),
+         Bead_status=factor(Bead_status))
+ 
+  
+
+
+
+```
+
+```{r}
+MC_cellcount_plot<-ggplot(MC_CASY_cellcount,aes(channel,mean_count_ml,fill=phosphate_mM))+geom_col()+
+  scale_fill_brewer(type="seq",palette = "Dark2",name = "[Phosphate] (mM)") +
+  theme_bw()+
+  labs(title="Cell counts in the MultiCultivator per channel",
+       subtitle = "Computed from CASY-counts",
+       x="Channel",
+       y= "Cell concentration (cells/ml)")
+
+
+comp_cellcount_plot<-ggplot(ABB_BBB_cellcount,aes(channel,count_ml,fill=Bead_status))+
+  geom_col(position = "dodge") +
+  scale_fill_brewer(type="seq",palette = "Set1",name=" Bead beating", labels=c('ABB', "BBB")) +
+  labs(title="Cell counts before and after bead beating per channel",
+       subtitle = "Computed from CASY-counts",
+       x="Channel",
+       y= "Cell concentration (cells/ml)") + 
+  theme_bw()
+
+Broken_cell_count_plot<-ggplot(Broken_cell_count,aes(channel,Broken_cell_count_ml,fill=phosphate_mM))+geom_col()+
+  scale_fill_brewer(type="seq",palette = "Dark2",name = "[Phosphate] (mM)") +
+  labs(title="Broken cell counts per channel",
+       subtitle = "Computed from CASY-counts",
+       x="Channel",
+       y= "Cell concentration (cells/ml)") +
+  theme_bw()
+
+lysis_efficiency_plot<-ggplot(Broken_cell_count,aes(channel,lysis_efficiency,fill=phosphate_mM))+geom_col()+
+  scale_fill_brewer(type="seq",palette = "Dark2",name = "[Phosphate] (mM)") +
+  labs(title="Lysis efficiency per channel",
+       subtitle = "Computed from CASY-counts",
+       x="Channel",
+       y= "Lysis efficiency (%)") +
+  theme_bw()
+
+MC_cellcount_plot
+
+comp_cellcount_plot
+
+Broken_cell_count_plot
+lysis_efficiency_plot
+```
+
+## qPCR Data:
