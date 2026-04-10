@@ -140,10 +140,26 @@ spec_phot_test_results|>flextable()
 Turbidostat<-Turbidostat|>
   left_join(Design|>select(channel,phosphate_mM))
 
-ggplot(Turbidostat,aes(time_h,OD,colour=phosphate_mM))+
+
+
+last_points <- Turbidostat |>
+  group_by(channel, decision) |>
+  slice_max(time_h, n = 1, with_ties = FALSE)
+
+ggplot(Turbidostat,aes(time_h,log10(OD),colour=phosphate_mM))+
   geom_point()+
-  facet_wrap(~channel,scales="free_x")+
-  labs(title="Time series",subtitle=expression(OD[720] ~" over time in hours, coloured by treatment group"), x="Time (h)",y=expression(OD[720]), colour="[phosphate] (mM)")+
+  facet_wrap(~channel,scales="free_x")+geom_smooth(
+  method = "lm",
+  aes(group = decision),
+  colour = "red",
+  alpha = 0.4,
+  linewidth = 0.5
+)+geom_point(
+    data = last_points,
+    colour = "cyan",
+    size = 1
+  ) +
+  labs(title="Time series",subtitle=expression(log[10](OD[720]) ~" over time in hours, coloured by treatment group"), x="Time (h)",y=expression(log[10](OD[720])), colour="[phosphate] (mM)")+
   scale_colour_brewer(type="seq",palette = "Dark2")+
   theme_bw()
   
