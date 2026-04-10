@@ -47,8 +47,9 @@ qPCR<-read_csv("Data/Qpcr.csv")
 
 ```{r}
 Design<-Design|>
-  mutate(phosphate_mM=factor(phosphate_mM))
+  mutate(phosphate_mM=factor(phosphate_mM)) # Setting factor so the variable is discrete
 
+# Compute the chlorophil A and phycobilisomes concentrations
 SpecPhot_total<-SpecPhot|>
   arrange(channel)|>
   mutate(phosphate_mM=Design$phosphate_mM,
@@ -71,6 +72,7 @@ SpecPhot_treatment<-SpecPhot_total|>
 ### Visualising the data
 
 ```{r}
+# Make the plots 
 od_730_plot<-ggplot(SpecPhot_treatment, aes(phosphate_mM,od_value_730,fill = phosphate_mM))+
   geom_col(show.legend = F)+
   labs(title="Bar plot",
@@ -81,7 +83,9 @@ od_730_plot<-ggplot(SpecPhot_treatment, aes(phosphate_mM,od_value_730,fill = pho
   theme_bw()
 
 
-chlor_a_plot<-ggplot(SpecPhot_treatment, aes(phosphate_mM,chlor_a,fill = phosphate_mM))+geom_col(show.legend = F)+
+chlor_a_plot<-ggplot(SpecPhot_treatment, 
+                     aes(phosphate_mM,chlor_a,fill = phosphate_mM))+
+  geom_col(show.legend = F)+
   labs(x="[Phosphate] (mM)", 
        y=expression("Chlorophyl A (mg/L)"),
        title="Bar plot",
@@ -89,7 +93,8 @@ chlor_a_plot<-ggplot(SpecPhot_treatment, aes(phosphate_mM,chlor_a,fill = phospha
   scale_fill_brewer(type="seq",palette = "Dark2")+
   theme_bw()
 
-pbs_plot<-ggplot(SpecPhot_treatment, aes(phosphate_mM,PBS,fill = phosphate_mM))+
+pbs_plot<-ggplot(SpecPhot_treatment, 
+                 aes(phosphate_mM,PBS,fill = phosphate_mM))+
   geom_col(show.legend = F)+
   labs(x="[Phosphate] (mM)", 
        y=expression("Phycobilisomes (mg/L)"),
@@ -169,11 +174,14 @@ Growth_rates<-Turbidostat|>
 
 
 test<-shapiro.test(Growth_rates|>filter(phosphate_mM=="0.0115")|>pull(mu))
+
 Mean_growth<-Growth_rates|>
   group_by(channel)|>
   summarise(mean_mu=mean(mu),
             sd_mu=sd(mu))|>
-  left_join(Design |> select(channel, phosphate_mM), by = "channel")
+  left_join(Design |> select(channel, phosphate_mM), by = "channel")|>
+  mutate(channel=factor(channel))
+
   
 
 Growth_rates<-Growth_rates|>
@@ -183,7 +191,9 @@ Mean_growth_per_group<-Growth_rates|>
   group_by(phosphate_mM)|>
   summarise(mean_mu_grp=mean(mu),sd_mu_grp=sd(mu),
             CI1=t.test(mu)$conf.int[1],
-            CI2=t.test(mu)$conf.int[2]) # Confidence interval is assuming normal distribution of the mean
+            CI2=t.test(mu)$conf.int[2])# Confidence interval is assuming normal distribution of the mean
+ 
+
 
 
 
@@ -228,7 +238,7 @@ technical_var
 
 biological_var
 
-t.test(mu~phosphate_mM,Growth_rates) #the null hypothesis that the mean growthrate between groups is the same is not rejected 
+t.test(mu~phosphate_mM,Growth_rates) #the null hypothesis that the mean growthrate between groups is the same is rejected
 ```
 
 Observations:
@@ -360,3 +370,198 @@ lysis_efficiency_plot
 ```
 
 ## qPCR Data:
+
+The molecular weight of the DNA was computed using the tool at
+<https://oligocalc.eu/>, with the settings set to dsDNA, no primers
+(since the primers are in the mastermix) nor modifications at either '
+end (since those are also in the mastermix). We begin by computing the
+standard curves for each replicate, and the relevant metrics to
+determine which curve to use.
+
+### Computation
+
+```{r}
+MolW_DNA<-670331.8 # Computed using oligonucleotide tool at https://oligocalc.eu/
+Na=6.02214076*10^23 # Avogadro's number
+
+# Compute the dna concentration in mg per uL
+qPCR_standard<-qPCR|>
+  filter(is.na(channel))|>
+  mutate(dna_ng=0.04/(dilution_factor*5), # Factor of 4 due to the 1:5 mixture with the master mix
+         dna_fragment=dna_ng/(10^9)/MolW_DNA*Na,
+         replicate=factor(replicate))
+  
+
+# Add copy of all rows with replicate "all" for plotting purposes
+qPCR_standard <- bind_rows(qPCR_standard, qPCR_standard |>
+  mutate(replicate = "all",
+         replicate = factor(replicate)))
+
+
+qPCR_standard_metrics<-qPCR_standard|>
+  group_by(replicate)|>
+  summarise(slope = coef(lm(Ct ~ log10(dna_fragment)))[2],
+            E= (10^(-1/slope)/2)*100,
+            R2 = summary(lm(Ct ~ log(dna_fragment)))$r.squared)
+
+
+optimal_slope=-1/log10(2)
+optimal_E_L=90
+optimal_E_H=110
+
+min_R2=0.98
+
+
+```
+
+### Plotting
+
+```{r}
+standard_curves<-ggplot(qPCR_standard,aes(log10(dna_fragment),Ct))+
+  geom_point()+
+  geom_smooth(method = 'lm')+
+  facet_wrap(~replicate) +
+  labs(title= "Standard curves per replicate",
+       x=expression(log[10]~"[DNA] (fragments/"*mu*"L)",
+       y= "Ct (cycles)"))+
+  theme_bw()
+
+slope_plot<-ggplot(qPCR_standard_metrics,aes(replicate,slope))+
+  geom_point()+
+  geom_hline(yintercept =  optimal_slope, col="red")+
+  labs(title="Standard curve slope per replicate",
+       subtitle = "Ideal slope in red",
+       x="Replicate",
+       y=expression("Slope"))+
+  theme_bw()
+
+E_plot<-ggplot(qPCR_standard_metrics,aes(replicate,E))+
+  geom_point()+
+  geom_hline(yintercept =  optimal_E_L,col="red")+
+  geom_hline(yintercept =  optimal_E_H,col="red")+
+  labs(title="Efficiency per replicate",
+       subtitle = "Ideal range in red",
+       x="Replicate",
+       y="Efficiency (%)")+
+  theme_bw()
+
+R_squared_plot<-ggplot(qPCR_standard_metrics,aes(replicate,R2))+
+  geom_point()+
+  geom_hline(yintercept =  min_R2, col="red")+
+  labs(title=expression(R^2~" per replicate"),
+       subtitle = expression("Minimal "* R^2* " in red"),
+       x="Replicate")+
+  theme_bw()
+
+standard_curves
+
+slope_plot
+
+E_plot
+
+R_squared_plot
+
+# I would suggest using curve 1, as it performs the best with slope and efficiency, and the Rsquared is sufficiently high. I compute the linear regression 
+
+dna_regression<-lm(log10(dna_fragment)~Ct,qPCR_standard|>filter(replicate=="1"))
+```
+
+### Computation
+
+```{r}
+qPCR_DNA<-qPCR|>
+  filter(sample_class=="sample")|>
+  mutate(log_10_dna_frag=predict(dna_regression, newdata = data.frame(Ct = Ct)),
+         dna_frag_ul=10^log_10_dna_frag*dilution_factor*5*2)|> #times 5 due to dilution in mastermix, times 2 due to ABB being in 1:2 solution 
+  left_join(Design)
+
+Ploidy<-qPCR_DNA|>
+  select(channel, dna_frag_ul, replicate )|>
+  mutate(channel=factor(channel))|>
+  left_join(Broken_cell_count)|>
+  mutate(broken_cell_ul = Broken_cell_count_ml/1000)|>
+  mutate(ploidy=dna_frag_ul/broken_cell_ul)
+
+Ploidy_per_channel<-Ploidy|>
+  group_by(channel)|>
+  summarise(ploidy=mean(ploidy),
+            sd_ploidy=sd(ploidy))|>
+  left_join(Broken_cell_count|>select(channel, phosphate_mM))
+
+Ploidy_per_group<-Ploidy|>
+  group_by(phosphate_mM)|>
+  summarise(mean_ploidy=mean(ploidy),
+            CI1=t.test(ploidy)$conf.int[1],
+            CI2=t.test(ploidy)$conf.int[2])
+
+# Run the analysis without channel 1, as it behaved
+Ploidy_per_group_no1<-Ploidy|>
+  filter(channel!="1")|>
+  group_by(phosphate_mM)|>
+  summarise(mean_ploidy=mean(ploidy),
+            CI1=t.test(ploidy)$conf.int[1],
+            CI2=t.test(ploidy)$conf.int[2])
+
+
+
+```
+
+### Plotting
+
+```{r}
+
+
+ggplot(qPCR_DNA,aes(x=factor(channel),y=dna_frag_ul,fill=phosphate_mM))+geom_boxplot(outliers = F, alpha = 0.5)+
+geom_jitter(aes(color=factor(dilution_factor)),width = 0.3) +
+  scale_fill_brewer(type="seq",palette = "Dark2",name = "[Phosphate] (mM)") +
+  scale_color_discrete(palette=c("blue","purple","red"), name="Dilution factor")+
+  labs(title = "DNA concentration per channel",
+       x="Channel",
+       y=expression("[DNA] (fragments/"*mu*"L)"))
+
+ggplot(Ploidy_per_channel, aes(x=channel,y=ploidy,fill=phosphate_mM))+geom_col()+
+  labs(title = "Ploidy per channel", 
+       x= "Channel", y="Ploidy (#)"
+       )+
+  scale_fill_brewer(type="seq",palette = "Dark2",name = "[Phosphate] (mM)") 
+
+ggplot(Ploidy_per_group, aes(x=phosphate_mM,y=mean_ploidy,fill=phosphate_mM))+
+  geom_col(show.legend = F)+
+  geom_errorbar(aes(ymin=CI1,ymax=CI2),width=0.2)+
+  labs(title = "Ploidy per treatment group",
+       x= "[Phosphate] (mM)",
+    y="Ploidy (#)"
+       )+
+  scale_fill_brewer(type="seq",palette = "Dark2",name = "[Phosphate] (mM)") 
+
+
+ggplot(Ploidy_per_group_no1, aes(x=phosphate_mM,y=mean_ploidy,fill=phosphate_mM))+
+  geom_col(show.legend = F)+
+  geom_errorbar(aes(ymin=CI1,ymax=CI2),width=0.2)+
+  labs(title = "Ploidy per treatment group",
+       subtitle= "Channel 1 omitted from analysis",
+    x= "[Phosphate] (mM)",
+    y="Ploidy (#)"
+       )+
+  scale_fill_brewer(type="seq",palette = "Dark2",name = "[Phosphate] (mM)") # Much tighter CI on the treatment group
+
+```
+
+### Hypothesis tests
+
+```{r}
+# RELATION PLOIDY v EFFICIENCY
+summary(lm(ploidy~lysis_efficiency,Ploidy)) # No significant relationship between lysis efficiency and ploidy: argument in favour of keeping channel 1
+
+
+# Normality of ploidy
+Ploidy|> group_by(phosphate_mM)|>
+  summarise(shapiro.test(ploidy)$p.value )# Ploidy is not normally distributed for treatment group, due to channel 1 being outlier?
+
+Ploidy|> filter(channel!=1)|>
+  group_by(phosphate_mM)|>
+  summarise(n=n(),
+            p_value=shapiro.test(ploidy)$p.value ) # Wo channel 1 normality is no longer ruled out by shapiro wilks test -> argument against keeping channel 1
+
+
+```
