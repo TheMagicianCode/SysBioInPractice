@@ -814,8 +814,8 @@ points_to_colo_blue<-Transcriptomics|>
   filter(log2FoldChange< -threshold_FC,
          padj<threshold_pvalue)
 
-genes_upregulated<-points_to_colo_red$gene_name
-genes_downregulated<-points_to_colo_blue$gene_name
+genes_upregulated<-points_to_colo_red$uniprot_id
+genes_downregulated<-points_to_colo_blue$uniprot_id
 
 ggplot(Transcriptomics,aes(x=log2FoldChange,y=-log10(padj)))+geom_point()+
   geom_vline(xintercept =  threshold_FC,col="red")+
