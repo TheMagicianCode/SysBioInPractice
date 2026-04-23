@@ -212,7 +212,7 @@ Mean_growth_per_group<-Growth_rates|>
   group_by(phosphate_mM)|>
   summarise(mean_mu_grp=mean(mu),sd_mu_grp=sd(mu),
             CI1=t.test(mu)$conf.int[1],
-            CI2=t.test(mu)$conf.int[2])# Confidence interval is assuming normal distribution of the mean
+            CI2=t.test(mu)$conf.int[2]) #Confidence interval is assuming normal distribution of the mean
  
 
 
@@ -239,7 +239,7 @@ technical_var<-ggplot(Mean_growth,aes(channel,mean_mu,fill=phosphate_mM))+
   geom_col()+
   geom_errorbar(aes(ymin=mean_mu-2*sd_mu,ymax=mean_mu+2*sd_mu),width=0.2)+
   scale_fill_brewer(type="seq",palette = "Dark2")+
-  labs(title="Bar plot",
+  labs(title="Technical ",
        subtitle = "Mean growth rates per channel, error bars represent 2 standard deviations",
        x="Channel",
        y=expression("mean" ~ mu),
@@ -253,6 +253,7 @@ biological_var<-ggplot(Mean_growth_per_group,aes(phosphate_mM,mean_mu_grp,fill=p
        x="[phosphate] (mM)",
        y=expression("mean"~ mu))+
   theme_bw()
+
 violin_plot
 
 technical_var
@@ -395,9 +396,10 @@ lysis_efficiency_plot
 The molecular weight of the DNA was computed using the tool at
 <https://oligocalc.eu/>, with the settings set to dsDNA, no primers
 (since the primers are in the mastermix) nor modifications at either '
-end (since those are also in the mastermix). We begin by computing the
-standard curves for each replicate, and the relevant metrics to
-determine which curve to use.
+end (since those are also in the mastermix).
+
+We begin by computing the standard curves for each replicate, and the
+relevant metrics to determine which curve to use.
 
 ### Computation
 
@@ -441,7 +443,7 @@ min_R2=0.98
 standard_curves<-ggplot(qPCR_standard,aes(log10(dna_fragment),Ct))+
   geom_point()+
   geom_smooth(method = 'lm')+
-  facet_wrap(~replicate) +
+  facet_wrap(vars(replicate)) +
   labs(title= "Standard curves per replicate",
        x=expression(log[10]~"[DNA] (fragments/"*mu*"L)",
        y= "Ct (cycles)"))+
@@ -513,7 +515,8 @@ Ploidy_per_group<-Ploidy|>
   group_by(phosphate_mM)|>
   summarise(mean_ploidy=mean(ploidy),
             CI1=t.test(ploidy)$conf.int[1],
-            CI2=t.test(ploidy)$conf.int[2])
+            CI2=t.test(ploidy)$conf.int[2],
+            )
 
 ### Since channel 1 had relatively poor lysis efficiency and is an outlier of ploidy in the treatment group, one might consider leaving it out
 
@@ -541,19 +544,27 @@ geom_jitter(aes(color=factor(dilution_factor)),width = 0.3) +
        x="Channel",
        y=expression("[DNA] (fragments/"*mu*"L)"))
 
+ggplot(Ploidy,aes(x=factor(channel),y=ploidy,fill=phosphate_mM))+
+  geom_violin()+geom_jitter()+
+  scale_fill_brewer(type="seq",palette = "Dark2",name = "[Phosphate] (mM)")+
+  labs(title="Violin plot",
+       subtitle = "Ploidy per channel",
+    x= "[Phosphate] (mM)",
+    y="Ploidy (#)"
+       ) # Note much more variance in the high phosphate group, as well as in channel 1
+
 ggplot(Ploidy_per_channel, aes(x=channel,y=ploidy,fill=phosphate_mM))+geom_col()+
   labs(title = "Ploidy per channel", 
-       x= "Channel", y="Ploidy (#)"
-       )+
+       x="Channel", y="Ploidy (#)")+
   scale_fill_brewer(type="seq",palette = "Dark2",name = "[Phosphate] (mM)") 
 
 ggplot(Ploidy_per_group, aes(x=phosphate_mM,y=mean_ploidy,fill=phosphate_mM))+
   geom_col(show.legend = F)+
   geom_errorbar(aes(ymin=CI1,ymax=CI2),width=0.2)+
   labs(title = "Ploidy per treatment group",
+       subtitle = "Error bars represent a 95% confidence interval",
        x= "[Phosphate] (mM)",
-    y="Ploidy (#)"
-       )+
+    y="Ploidy (#)" )+
   scale_fill_brewer(type="seq",palette = "Dark2",name = "[Phosphate] (mM)") 
 
 ## Since channel 1 had relatively poor lysis efficiency and is an outlier of ploidy in the treatment group, one might consider leaving it out
@@ -566,7 +577,7 @@ ggplot(Ploidy_per_group_no1, aes(x=phosphate_mM,y=mean_ploidy,fill=phosphate_mM)
     x= "[Phosphate] (mM)",
     y="Ploidy (#)"
        )+
-  scale_fill_brewer(type="seq",palette = "Dark2",name = "[Phosphate] (mM)") # Much tighter CI on the treatment group
+  scale_fill_brewer(type="seq",palette = "Dark2",name = "[Phosphate] (mM)") # Much tighter CI on the treatment group (makes sense because less variance in the treatment group without 1)
 
 ```
 
@@ -576,15 +587,27 @@ ggplot(Ploidy_per_group_no1, aes(x=phosphate_mM,y=mean_ploidy,fill=phosphate_mM)
 # RELATION PLOIDY v EFFICIENCY
 summary(lm(ploidy~lysis_efficiency,Ploidy)) # No significant relationship between lysis efficiency and ploidy -> argument in favour of keeping channel 1
 
+round(t.test(ploidy~phosphate_mM,Ploidy)$p.value,3)
+
+t.test(ploidy~phosphate_mM,Ploidy|>filter(channel!="1"))
 
 # Normality of ploidy
 Ploidy|> group_by(phosphate_mM)|>
-  summarise(shapiro.test(ploidy)$p.value )# Ploidy is not normally distributed for treatment group, due to channel 1 being outlier?
+  summarise(n=n(),
+            "p-value"=round(shapiro.test(ploidy)$p.value ,3))|>
+  mutate("[Phosphate] (mM)"=phosphate_mM)|> 
+  select(-phosphate_mM)|>
+  flextable(col_keys = c("[Phosphate] (mM)", "n", "p-value"))
+
+# Ploidy is not normally distributed for treatment group, due to channel 1 being outlier?
 
 Ploidy|> filter(channel!=1)|>
   group_by(phosphate_mM)|>
   summarise(n=n(),
-            p_value=shapiro.test(ploidy)$p.value ) # Wo channel 1 normality is no longer ruled out by shapiro wilks test -> argument against keeping channel 1
+            "p-value"=round(shapiro.test(ploidy)$p.value ,3))|>
+  mutate("[Phosphate] (mM)"=phosphate_mM)|>
+  select(-phosphate_mM)|>
+  flextable(col_keys = c("[Phosphate] (mM)", "n", "p-value"))# Without channel 1 normality is no longer ruled out by shapiro wilks test -> argument against keeping channel 1
 
 
 ```
@@ -608,7 +631,10 @@ ggplot(OD_v_CellCount, aes(x = mean_count_ml)) +
   scale_colour_manual(
     name = "Measurement",
     values = c("OD 730" = "blue", "OD 720" = "red")
-  )
+  )+
+  labs(title="OD versus mean cell count",
+       x="Mean cell count (#/ml)",
+       y=expression(OD))
 
 # Run tests
 summary(lm(od_value_730~mean_count_ml,OD_v_CellCount)) 
@@ -624,16 +650,21 @@ size. We compare these measurements to the treatment group for the BBB
 samples, as these will also be used in further analysis comparing the
 cell size with ploidy.
 
-The plots below suggest that the cell size goes down in the control
-group with more phosphate. This is surprising as literature suggests a
-positive relationship between phosphate abundance and cell size in
-cyanobacteria. I found a Cohen's d value of 4.82 (CI\[2.90, 6.69\]),
-suggesting a statistically significant but small effect.
+The plots below suggest that both mean and peak cell diameter go down in
+the control group with more phosphate. I found a Cohen's d value of 4.82
+(CI\[2.90, 6.69\]), suggesting a statistically significant but small
+effect.
+
+This feels surprising to me, and I have so far not found anything
+concrete in the literature on this. It could be possible that the cells
+grow larger before dividing, leading to larger but fewer cells in the
+phosphate-starved population. As shown in the spectrophotometry data,
+there is a decrease in $\text{OD}_{730}$ in the treatment group.
 
 ```{r}
 size_v_treatment<-CASY|>
   filter(sample_type=="BBB")|>
-  select(channel,mean_diameter)|>
+  select(channel,mean_diameter,peak_diameter)|>
   left_join(Design,by="channel")
 
 summary(lm(data=size_v_treatment,formula=mean_diameter~phosphate_mM))
@@ -641,13 +672,26 @@ summary(lm(data=size_v_treatment,formula=mean_diameter~phosphate_mM))
 ggplot(size_v_treatment,aes(x=factor(phosphate_mM),
                             y=mean_diameter,
                             fill=factor(phosphate_mM)))+
-  geom_boxplot(show.legend = F)+geom_point(show.legend = F)+
+  geom_boxplot(show.legend = F)+geom_jitter(show.legend = F,width = 0.1)+
   scale_fill_brewer(type="seq",palette = "Dark2",name = "[Phosphate] (mM)")+
-  labs(title = "Cell size per treatment group",
+  labs(title = "Mean cell diameter per treatment group",
     x= "[Phosphate] (mM)",
     y= expression("Mean diameter ("*mu*"m)")
        )
 
+ggplot(size_v_treatment,aes(x=factor(phosphate_mM),
+                            y=peak_diameter,
+                            fill=factor(phosphate_mM)))+
+  geom_boxplot(show.legend = F)+geom_jitter(show.legend = F,width = 0.1)+
+  scale_fill_brewer(type="seq",palette = "Dark2",name = "[Phosphate] (mM)")+
+  labs(title = "Peak cell diameter per treatment group",
+    x= "[Phosphate] (mM)",
+    y= expression("Peak diameter ("*mu*"m)")
+       )
+
 library(effectsize)
+
 cohens_d(mean_diameter~phosphate_mM,data=size_v_treatment)
+
+
 ```
