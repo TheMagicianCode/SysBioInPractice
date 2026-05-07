@@ -709,7 +709,7 @@ cohens_d(mean_diameter~phosphate_mM,data=size_v_treatment)
 ```{r}
 Transcriptomics<-read_csv("Data/log2FC_transcriptomics.csv")
 
-Proteomics<-read_tsv("Data/Proteomics_Metabolomics/proteinGroups.txt")
+Proteomics<-read_csv("Data/Proteomics_Metabolomics/Proteomics.csv")
 
 Metabolomics<-read_excel("Data/Proteomics_Metabolomics/HILIC_BA_Metabolites_Synechocystis.xlsx")
 
@@ -718,9 +718,7 @@ Lipidomics<-read_excel("Data/Proteomics_Metabolomics/C18_CD_Lipids_SILS54_Synech
 Metadata<-read_excel("Data/Proteomics_Metabolomics/MetaData.xlsx")
 ```
 
-## Transcriptomics analysis
-
-## Multiomics Wrangling
+## Metabolomics Wrangling
 
 ```{r}
 vars<-c("ID","WT-S1","WT-S2","WT-S3","WT-S4", "Treatment-S5","Treatment-S6","Treatment-S7","Treatment-S8")
@@ -730,24 +728,24 @@ split_cols <- strsplit(vars[-1], "-")
 header2 <- c("Group", sapply(split_cols, `[`, 1))
 header1 <- c("Name",   sapply(split_cols, `[`, 2))
 
-# Proteomics
-Proteomics_fixed<-Proteomics|>
-  select(contains("LFQ"), `Majority protein IDs`, `Only identified by site`, Reverse, `Potential contaminant`)|>
-  filter(is.na(`Only identified by site`),
-         is.na(Reverse),
-         is.na(`Potential contaminant`))|>
-  select(`Majority protein IDs`,contains("LFQ"))
-
-colnames(Proteomics_fixed)<-vars
-
-# write to file
-proteomics_file <- file("Omics_Data_Output/Proteomics.csv", "w")
-
-writeLines(paste(header1, collapse = ","), proteomics_file)
-writeLines(paste(header2, collapse = ","), proteomics_file)
-
-# then append your data (without colnames)
-write.table(Proteomics_fixed, proteomics_file, sep = ",", row.names = FALSE, col.names = FALSE)
+# # Proteomics
+# Proteomics_fixed<-Proteomics|>
+# select(contains("LFQ"), `Majority protein IDs`, `Only identified by site`, Reverse, `Potential contaminant`)|>
+#   filter(is.na(`Only identified by site`),
+#          is.na(Reverse),
+#          is.na(`Potential contaminant`))|>
+#   select(`Majority protein IDs`,contains("LFQ"))
+# 
+# colnames(Proteomics_fixed)<-vars
+# 
+# # write to file
+# proteomics_file <- file("Omics_Data_Output/Proteomics.csv", "w")
+# 
+# writeLines(paste(header1, collapse = ","), proteomics_file)
+# writeLines(paste(header2, collapse = ","), proteomics_file)
+# 
+# # then append your data (without colnames)
+# write.table(Proteomics_fixed, proteomics_file, sep = ",", row.names = FALSE, col.names = FALSE)
 
 # Metabolomics
 Metabolomics_fixed<- Metabolomics|>
@@ -784,7 +782,7 @@ writeLines(paste(header2, collapse = ","), lipidomics_file)
 write.table(Lipidomics_fixed, lipidomics_file, sep = ",", row.names = FALSE, col.names = FALSE)
 
 
-multi_omics<-rbind(Proteomics_fixed,Metabolomics_fixed,Lipidomics_fixed)|>
+multi_omics<-rbind(Metabolomics_fixed,Lipidomics_fixed)|>
   distinct(ID,.keep_all = T)
 
 
@@ -800,36 +798,73 @@ write.table(multi_omics, multi_file, sep = ",", row.names = FALSE, col.names = F
 
 ```
 
+With the new proteomics dataset, we have logratios (it is unspecified
+which log so I am assuming log_2?) for at most three replicates. It is
+unclear which channels are being compared between the groups, as is the
+case with the other omics data which channels are being considered.
+
+Despite the fact that the log-ratios are non-normality distributed over
+the samples, as shown by the Shapiro-Wilks test, we will use a $t$-test
+to test significant differences in protein abundance between the groups.
+This assumes that for each protein, the measured log-ratios are drawn
+from a normal distribution centered at the true log-ratio.
+
+```{r}
+Proteomics_fixed<-Proteomics|>
+  filter(ratio_count>0)|>#filter out proteins without data
+  mutate(t_score=avg_ratio*sqrt(ratio_count)/(sd_ratio), #compute t and p values
+         p_value=pt(abs(t_score),1,lower.tail = F))
+
+
+Relevant_proteins<-Proteomics_fixed|>
+  filter(abs(avg_ratio)>1,p_value<0.025)
+  
+Upreg_protein<-Relevant_proteins|>filter(avg_ratio>0)|>
+  pull(protein)
+  
+Downreg_protein<-Relevant_proteins|>filter(avg_ratio<0)|>
+  pull(protein)
+
+
+ggplot(Proteomics_fixed,aes(x=avg_ratio))+geom_histogram()
+
+
+```
+
 ## Transcriptomics
 
 ```{r}
 threshold_FC<-2
 threshold_pvalue<-0.005
 
-points_to_colo_red<-Transcriptomics|>
+upregulated_genes<-Transcriptomics|>
   filter(log2FoldChange>threshold_FC,
          padj<threshold_pvalue)
 
-points_to_colo_blue<-Transcriptomics|>
+downregulated_genes<-Transcriptomics|>
   filter(log2FoldChange< -threshold_FC,
          padj<threshold_pvalue)
 
-genes_upregulated<-points_to_colo_red$uniprot_id
-genes_downregulated<-points_to_colo_blue$uniprot_id
+upregulated_genes_list<-upregulated_genes$uniprot_id
+downregulated_genes_list<-downregulated_genes$uniprot_id
+
+intersect(Upreg_protein,genes_upregulated) #5 genes in common between the upregulated proteins from proteomics (21) vs upregulated genes in transcriptomics (40)
+intersect(Downreg_protein,genes_downregulated) # No common elements
 
 ggplot(Transcriptomics,aes(x=log2FoldChange,y=-log10(padj)))+geom_point()+
   geom_vline(xintercept =  threshold_FC,col="red")+
   geom_vline(xintercept =  -threshold_FC,col="red")+
   geom_hline(yintercept = -log10(threshold_pvalue),col="blue")+geom_point(
-  data = points_to_colo_red,
+  data = upregulated_genes,
   aes(x = log2FoldChange, y = -log10(padj)),
   color = "red")+
-  geom_point(data = points_to_colo_blue,
+  geom_point(data = downregulated_genes,
   aes(x = log2FoldChange, y = -log10(padj)),
   color = "blue")
 
-write(genes_upregulated,"upreg_trans.csv")
+# Write list of upregulated genes for string_db.org
+write(upregulated_genes_list,"upreg_trans.csv")
 
-
-write(genes_downregulated,"downreg_trans.csv")
+# Write list of downregulated genes for string_db.org
+write(downregulated_genes_list,"downreg_trans.csv")
 ```
