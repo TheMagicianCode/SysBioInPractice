@@ -764,7 +764,7 @@ writeLines(paste(header2, collapse = ","), metabolomics_file)
 # then append your data (without colnames)
 write.table(Metabolomics_fixed, metabolomics_file, sep = ",", row.names = FALSE, col.names = FALSE)
 
-
+# Make lipidomics file ready for 
 Lipidomics_fixed<- Lipidomics|>
   unite("ID",c(`RT [min]`,`m/z meas.`))|>
   mutate(ID = paste0(ID, "_apolar"))|>
@@ -778,7 +778,7 @@ lipidomics_file <- file("Omics_Data_Output/lipidomics.csv", "w")
 writeLines(paste(header1, collapse = ","), lipidomics_file)
 writeLines(paste(header2, collapse = ","), lipidomics_file)
 
-# then append your data (without colnames)
+# then append data
 write.table(Lipidomics_fixed, lipidomics_file, sep = ",", row.names = FALSE, col.names = FALSE)
 
 
@@ -793,7 +793,7 @@ multi_file <- file("Omics_Data_Output/Multiomics.csv", "w")
 writeLines(paste(header1, collapse = ","), multi_file)
 writeLines(paste(header2, collapse = ","), multi_file)
 
-# then append your data (without colnames)
+# then append data
 write.table(multi_omics, multi_file, sep = ",", row.names = FALSE, col.names = FALSE)
 
 ```
@@ -809,15 +809,19 @@ to test significant differences in protein abundance between the groups.
 This assumes that for each protein, the measured log-ratios are drawn
 from a normal distribution centered at the true log-ratio.
 
+Using the p-values from the t-test, I select those proteins which have
+an absolute logratio greater than 1 (so at least a twofold difference)
+and a p-value less than 0.05
+
 ```{r}
 Proteomics_fixed<-Proteomics|>
   filter(ratio_count>0)|>#filter out proteins without data
   mutate(t_score=avg_ratio*sqrt(ratio_count)/(sd_ratio), #compute t and p values
-         p_value=pt(abs(t_score),1,lower.tail = F))
+         p_value=pt(abs(t_score),1,lower.tail = F)) 
 
 
 Relevant_proteins<-Proteomics_fixed|>
-  filter(abs(avg_ratio)>1,p_value<0.025)
+  filter(abs(avg_ratio)>0.3,p_value<0.025) 
   
 Upreg_protein<-Relevant_proteins|>filter(avg_ratio>0)|>
   pull(protein)
@@ -825,7 +829,11 @@ Upreg_protein<-Relevant_proteins|>filter(avg_ratio>0)|>
 Downreg_protein<-Relevant_proteins|>filter(avg_ratio<0)|>
   pull(protein)
 
+# Write list of upregulated genes for string_db.org
+write(Upreg_protein,"upreg_prot.csv")
 
+# Write list of downregulated genes for string_db.org
+write(Downreg_protein,"downreg_prot.csv")
 ggplot(Proteomics_fixed,aes(x=avg_ratio))+geom_histogram()
 
 
