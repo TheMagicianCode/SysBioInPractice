@@ -1,0 +1,128 @@
+---
+title: "omics_analysis"
+format: html
+---
+
+```{r}
+transcriptomics = read_csv("Data/log2FC_transcriptomics.csv")
+proteomics = read_csv("Data/Proteomics_Metabolomics/Proteomics.csv")
+```
+# Data cleaning and Processing
+
+```{r}
+# replace the 0 p-values with the minimum p-value
+transcriptomics = transcriptomics %>% mutate(p_was_zero = (pvalue == 0))
+
+minimum_p = min(transcriptomics$pvalue[transcriptomics$pvalue > 0], na.rm = TRUE)
+minimum_adj_p = min(transcriptomics$padj[transcriptomics$padj > 0], na.rm = TRUE)
+
+transcriptomics = transcriptomics %>% mutate(pvalue = ifelse(pvalue == 0, minimum_p, pvalue), padj = ifelse(padj == 0, minimum_adj_p, padj), neg_log10_padj = -log10(padj))
+
+# rename avg_ratio to median_ratio
+
+proteomics = proteomics %>% rename(median_ratio = avg_ratio)
+```
+
+# Merge datasets 
+
+```{r}
+merged_data = transcriptomics %>% inner_join(proteomics, by = c("uniprot_id" = "protein")) %>% filter(!is.na(log2FoldChange) & !is.na(median_ratio))
+```
+
+# Correlation analysis
+
+```{r}
+correlation = cor(merged_data$log2FoldChange, merged_data$median_ratio, method = "spearman")
+print(paste("Spearman Correlation between mRNA and Protein:", round(correlation, 4)))
+```
+# mRNA vs Protein Correlation
+
+First, I made the plots without looking for phosphate or dna related genes. Then, I detected those genes (by detecting certain letters in the gene names) and made those plots again. I also visualized the genes whose initial p-value was 0, to visualize that these are actually very important genes. 
+
+```{r}
+ggplot(merged_data, aes(x = log2FoldChange, y = median_ratio)) +
+  geom_point(size = 3, alpha = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_minimal() +
+  labs(title = "Multi-omics Correlation",
+       x = "mRNA log2 Fold Change",
+       y = "Protein log2 Median Ratio")
+
+ggplot(transcriptomics, aes(x = log2FoldChange, y = neg_log10_padj)) +
+  geom_point(alpha = 0.2, color = "grey") +
+  geom_vline(xintercept =  threshold_FC,col="red")+
+  geom_vline(xintercept =  -threshold_FC,col="red")+
+  geom_hline(yintercept = -log10(threshold_pvalue),col="blue") +
+  theme_minimal() +
+  labs(title = "Volcano Plot",
+       x = "log2 Fold Change",
+       y = "-log10(adj P-value)")
+```
+
+
+```{r}
+merged_data = merged_data %>% mutate(Category = case_when(str_detect(gene_name, "pst|sph|pho") ~ "Phosphate Response", str_detect(gene_name, "dna|fts|min|pol|gyr") ~ "Ploidy/Cell Division", TRUE ~ "Other"))
+
+ggplot(merged_data, aes(x = log2FoldChange, y = median_ratio, color = Category, shape = p_was_zero)) +
+  geom_point(size = 3, alpha = 0.7) +
+  scale_shape_manual(values = c("TRUE" = 15, "FALSE" = 16), 
+                     name = "Initial P-value was 0") +
+  scale_color_manual(values = c("Phosphate Response" = "red", 
+                                "Ploidy/Cell Division" = "blue", 
+                                "Other" = "grey70")) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_minimal() +
+  labs(title = "Multi-omics Correlation",
+       x = "mRNA log2 Fold Change",
+       y = "Protein log2 Median Ratio")
+
+ggplot(transcriptomics, aes(x = log2FoldChange, y = neg_log10_padj)) +
+  geom_point(alpha = 0.2, color = "grey") +
+  # Highlight Phosphate genes
+  geom_point(data = filter(transcriptomics, str_detect(gene_name, "pst|sph|pho")), 
+             color = "red") +
+  # Highlight Ploidy genes
+  geom_point(data = filter(transcriptomics, str_detect(gene_name, "dnaA|ftsZ|minC")), 
+             color = "blue") +
+  theme_minimal() +
+  labs(title = "Volcano Plot",
+       x = "log2 Fold Change",
+       y = "-log10(adj P-value)")
+
+ggplot(transcriptomics, aes(x = log2FoldChange, y = neg_log10_padj, shape = p_was_zero, color = p_was_zero)) +
+  geom_point(alpha = 0.4) +
+  scale_shape_manual(values = c("TRUE" = 15, "FALSE" = 16)) +
+  scale_color_manual(values = c("TRUE" = "orange", "FALSE" = "grey70")) +
+  
+  theme_minimal() +
+  labs(title = "Volcano Plot",
+       subtitle = "Orange squares indicate genes with p-values at 0",
+       x = "log2 Fold Change",
+       y = "-log10(adj P-value)")
+
+pst_list <- c("pstS1", "pstS2", "sphX", "pstA1", "pstA2", "pstB1", "pstB2", "pstC1", "pstC2")
+
+pst_plot_data <- merged_data %>%
+  filter(gene_name %in% pst_list) %>%
+  select(gene_name, log2FoldChange, median_ratio) %>%
+  pivot_longer(cols = c(log2FoldChange, median_ratio), 
+               names_to = "Data_Source", 
+               values_to = "Log_Ratio")
+
+ggplot(pst_plot_data, aes(x = gene_name, y = Log_Ratio, fill = Data_Source)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_minimal() +
+  coord_flip() +
+  labs(title = " ",
+       subtitle = "Comparison of mRNA and Protein Levels",
+       x = "Gene Name",
+       y = "Log2 Ratio (Starvation / Control)")
+
+
+```
+psS1, psC1, psA1, psB1, psS2, psC2, psA2, psB2 and sphX all had a (adjusted) p-value of 0. Which have been replaced with the mininum p-value from the dataset. psS2 had the highest FoldChange of them all. 
+
+
+
