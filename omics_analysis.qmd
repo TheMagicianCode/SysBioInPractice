@@ -62,7 +62,7 @@ ggplot(transcriptomics, aes(x = log2FoldChange, y = neg_log10_padj)) +
 
 
 ```{r}
-merged_data = merged_data %>% mutate(Category = case_when(str_detect(gene_name, "pst|sph|pho") ~ "Phosphate Response", str_detect(gene_name, "dna|fts|min|pol|gyr") ~ "Ploidy/Cell Division", TRUE ~ "Other"))
+merged_data = merged_data %>% mutate(Category = case_when(str_detect(gene_name, "pst|sph|pho") ~ "Phosphate Response", str_detect(gene_name, "dna|fts|min|rec|mut|uvr|gyr|ruv|alk|lex|pvu") ~ "Ploidy/Cell Division", TRUE ~ "Other"))
 
 ggplot(merged_data, aes(x = log2FoldChange, y = median_ratio, color = Category, shape = p_was_zero)) +
   geom_point(size = 3, alpha = 0.7) +
@@ -84,7 +84,7 @@ ggplot(transcriptomics, aes(x = log2FoldChange, y = neg_log10_padj)) +
   geom_point(data = filter(transcriptomics, str_detect(gene_name, "pst|sph|pho")), 
              color = "red") +
   # Highlight Ploidy genes
-  geom_point(data = filter(transcriptomics, str_detect(gene_name, "dnaA|ftsZ|minC")), 
+  geom_point(data = filter(transcriptomics, str_detect(gene_name, "dna|fts|min|rec|mut|uvr|gyr|ruv|alk|lex|pvu")), 
              color = "blue") +
   theme_minimal() +
   labs(title = "Volcano Plot",
@@ -122,7 +122,7 @@ ggplot(pst_plot_data, aes(x = gene_name, y = Log_Ratio, fill = Data_Source)) +
 
 
 ```
-psS1, psC1, psA1, psB1, psS2, psC2, psA2, psB2 and sphX all had a (adjusted) p-value of 0. Which have been replaced with the mininum p-value from the dataset. psS2 had the highest FoldChange of them all. 
+pstS1, pstC1, pstA1, pstB1, pstS2, pstC2, pstA2, pstB2 and sphX all had a (adjusted) p-value of 0. Which have been replaced with the mininum p-value from the dataset. pstS2 had the highest FoldChange of them all. 
 
 
 
